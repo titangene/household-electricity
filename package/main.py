@@ -12,14 +12,13 @@ def save_csv(data, data_path):
 	print('save: ' + data_path)
 
 # 遇到 負數 直接砍，因為發現 sensor 本身有問題
-# 刪除 >= 10000
+# 預設刪除 > 10000 或 < 0 的值
 def delete_outliers(dataeSet, threshold=10000):
 	return dataeSet[(dataeSet['w'] >= 0) & (dataeSet['w'] <= threshold)]
 
 # string to datetime
+# e.g. format='%Y-%M-%d', or '%Y-%m-%d %H:%M:%S' ...
 def transform_time(dataeSet, column, format):
-	# dataeSet.loc[:, 'reporttime'] = pd.to_datetime(dataeSet['reporttime'])
-	# dataeSet['reporttime'] = pd.to_datetime(dataeSet['reporttime'], format='%Y-%M-%d')
 	dataeSet[column] = pd.to_datetime(dataeSet[column], format=format)
 	return dataeSet
 
