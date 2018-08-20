@@ -56,6 +56,7 @@ def transpose_data_electricity_watt(date_df):
 	# 若已有 96 筆，就可以不用補植
 	if (len(date_df) == 96):
 		return date_df.drop(['reporttime'], axis=1)['w'].tolist()
+    # 若未有 96 筆，就必須將缺的 period 補成 96 筆
 	else:
 		for index, row in date_df.iterrows():
 			periods = create_periods_datetime_list()
@@ -68,7 +69,7 @@ def transpose_data_electricity_watt(date_df):
 			df_list.append(row['w'])
 			period_index += 1
 
-		# 將最後面的 NA 值設為 None
+		# 將最後面幾個 period 的 NA 值都設為 None
 		if (len(df_list) != 96):
 			df_list.append(None)
 
@@ -135,8 +136,6 @@ def consolidation_all_dataSet(dataSet):
 
 # 刪除最前或最後有缺值之資料
 def delete_first_or_last_na(dataSet):
-	# tmp_dataSet = dataSet[dataSet['period_1'].notnull()]
-	# return tmp_dataSet[tmp_dataSet['period_96'].notnull()]
 	return dataSet.dropna(subset=['period_1', 'period_96'])
 
 # 刪除缺值之門檻值
@@ -144,8 +143,8 @@ def dorpna_threshold(dataSet, threshold):
 	period_sum = 96
 	# uuid, userId, reportTime
 	another_column_sum = 3
-	# return dataSet.dropna(thresh=(period_sum - threshold + another_column_sum))
-	return dataSet.dropna(thresh=(11 - threshold + 1))
+	return dataSet.dropna(thresh=(period_sum - threshold + another_column_sum))
+# 	return dataSet.dropna(thresh=(11 - threshold + 1))
 
 # 將 period_10 轉成 10
 def transforma_period_list_number(na_periods_colume):
@@ -214,6 +213,7 @@ def process_na(dataSet, peroid_column, threshold):
 	print('刪除最前或最後有缺值之資料，before: {}, after: {}'.format(delete_before_count, len(dataSet)))
 
 	delete_before_count = len(dataSet)
+    # process_period_na function：補值
 	dataSet = dataSet.apply(process_period_na, axis=1)
 	dataSet = dataSet.dropna(how='all')
 
@@ -225,7 +225,8 @@ def process_na(dataSet, peroid_column, threshold):
 	print('刪除無法補值之資料，before: {}, after: {}'.format(delete_before_count, len(dataSet)))
 	return dataSet
 
-def group(sequence, chunk_size):
+# 把需量轉成小時 (每 4 個 period，會組成一個 tuple)
+def kWh_group(sequence, chunk_size):
 	return list(zip(*[iter(sequence)] * chunk_size))
 
 # 計算 每小時 (4 個 period) 平均用電
@@ -237,12 +238,13 @@ def hour_mean_w(period_group, dataSet):
 # 計算 最大需量 和 最大需量
 def peroid_max_min_sum_w(dataSet):
 	peroid_column = create_peroid_column()
-	# 只取 period 欄位計算 max 和 min
+	# 只取所有 period 欄位來計算 max 和 min
 	tmp_dataSet = dataSet.loc[:, peroid_column]
 	dataSet['wMax'] = tmp_dataSet.agg('max', axis=1)
 	dataSet['wMin'] = tmp_dataSet.agg('min', axis=1)
 
-	period_groups = group(peroid_column, 4)
+	# 把需量轉成小時 (每 4 個 period，會組成一個 tuple)
+	period_groups = kWh_group(peroid_column, 4)
 	tmp_mean_dataSet = pd.DataFrame(list(map(lambda x: hour_mean_w(x, tmp_dataSet), period_groups))).T
 	dataSet['wSum'] = tmp_mean_dataSet.agg('sum', axis=1)
 
