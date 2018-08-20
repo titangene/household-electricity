@@ -22,9 +22,9 @@ def transform_time(dataeSet, column, format):
 	dataeSet[column] = pd.to_datetime(dataeSet[column], format=format)
 	return dataeSet
 
-# 以 buildingid 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
-def groupbyData(dataSet):
-	group_dataSet = dataSet.groupby(['buildingid', pd.Grouper(key='reporttime', freq='15T')])['w'].mean().round(2).reset_index()
+# 以某欄位 (e.g. userId) 作為分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
+def groupbyData(dataSet, column):
+	group_dataSet = dataSet.groupby([column, pd.Grouper(key='reporttime', freq='15T')])['w'].mean().round(2).reset_index()
 	return group_dataSet
 
 # 建立以日為單位之欄位 (96 期)
