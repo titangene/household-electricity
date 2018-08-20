@@ -13,8 +13,8 @@ def save_csv(data, data_path):
 
 # 遇到 負數 直接砍，因為發現 sensor 本身有問題
 # 刪除 >= 10000
-def delete_outliers(dataeSet):
-	return dataeSet[(dataeSet['w'] >= 0) & (dataeSet['w'] <= 10000)]
+def delete_outliers(dataeSet, threshold=10000):
+	return dataeSet[(dataeSet['w'] >= 0) & (dataeSet['w'] <= threshold)]
 
 # string to datetime
 def transform_time(dataeSet, column, format):
