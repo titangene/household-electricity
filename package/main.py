@@ -3,9 +3,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def load_dataset(data_path, dtype=None, parse_dates=None):
-	dataframe = pd.read_csv('data/' + data_path, dtype=dtype, parse_dates=parse_dates)
-	return dataframe
+'''
+e.g.
+dtype={ 'uuid': str, 'userId': str }
+date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+parse_dates=['reportTime']
+'''
+def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None):
+	return pd.read_csv('data/' + data_path, dtype=dtype, 
+                            date_parser=date_parser, parse_dates=parse_dates)
 
 def save_csv(data, data_path):
 	data.to_csv('data/' + data_path, encoding='utf-8', index=False)
@@ -46,6 +52,8 @@ def create_periods_datetime_list():
 def transpose_data_electricity_watt(date_df):
 	period_index = 0
 	df_list = []
+
+	# 若已有 96 筆，就可以不用補植
 	if (len(date_df) == 96):
 		return date_df.drop(['reporttime'], axis=1)['w'].tolist()
 	else:
@@ -70,46 +78,58 @@ def transpose_data_electricity_watt(date_df):
 	return df_list
 
 # 建立一天的資料集
-def set_day_dataSet(uuid, buildingId, reportTime, date_df):
+def set_day_dataSet(uuid, userId, reportTime, date_df):
 	# print(" ", reportTime, len(date_df))
 	data_watt_list = transpose_data_electricity_watt(date_df)
 
-	# [uuid, buildingId, reportTime, period_1...]
-	dataSet_list = [uuid, buildingId, reportTime] + data_watt_list
+	# [uuid, userId, reportTime, period_1, .period_2, ..., period_96]
+	dataSet_list = [uuid, userId, reportTime] + data_watt_list
 
 	# if (len(dataSet_list) != 99):
 	# 	print(dataSet_list[2], len(dataSet_list))
 	return dataSet_list
 
-# 彙整與轉置單一使用者的用電資料 (96 期)
-def consolidation_buildingid_dataSet(date_groups, user_groupName):
+# 生成 uuid
+# e.g. userId: 1, channelId: 0, reportTime: '20180815' -> '10201808015'
+def generate_uuid(userId, channelId, reportTime):
+	return '{}{}{}'.format(userId, channelId, reportTime)
+
+# 彙整與轉置單一用戶的用電資料 (96 期)
+def consolidation_userId_dataSet(user_dates_group, user_group_name):
 	dataSet_lists = []
 
-	for date_groupName, date_group in date_groups:
+	# date_group_name (index)：單一用戶一天之時間，date_group (value)：單一用戶一天的用電資料
+	for date_group_name, date_group in user_dates_group:
 		date_df = date_group.reset_index()
-		date_df = date_df.drop(['index', 'buildingid'], axis=1)
+		date_df = date_df.drop(['index', 'userId'], axis=1)
 
-		buildingId = user_groupName
-		reportTime = date_groupName.strftime('%Y%m%d')
+		userId = user_group_name
 		channelId = 0
-		uuid = '{}{}{}'.format(buildingId, channelId, reportTime)
+		# 將時間格式 '2018/08/15' 轉換成 '20180815'
+		reportTime = date_group_name.strftime('%Y%m%d')
+		uuid = generate_uuid(userId, channelId, reportTime)
 
-		reportTime = date_groupName.date()
-		dataSet_list = set_day_dataSet(uuid, buildingId, reportTime, date_df)
+		# 時間只取 年 月 日
+		reportTime = date_group_name.date()
+		# 建立一天的資料集
+		dataSet_list = set_day_dataSet(uuid, userId, reportTime, date_df)
 		dataSet_lists.append(dataSet_list)
 
 	return dataSet_lists
 
 # 彙整與轉置多個使用者的用電資料 (96 期)
 def consolidation_all_dataSet(dataSet):
-	users_group = dataSet.groupby('buildingid')
+	users_group = dataSet.groupby('userId')
 	users_dataSet_list = []
 
-	for user_groupName, user_group in users_group:
-		date_groups = user_group.groupby(pd.Grouper(key='reporttime', freq='1D'))
-		tmp_list = consolidation_buildingid_dataSet(date_groups, user_groupName)
+	# user_group_name (index)：單一用戶編號，user_group (value)：單一用戶用電資料
+	for user_group_name, user_group in users_group:
+		# 單一用戶以 reporttime 欄位的每一天 groupby
+		user_dates_group = user_group.groupby(pd.Grouper(key='reporttime', freq='1D'))
+		# 彙整與轉置單一用戶的用電資料 (96 期)
+		tmp_list = consolidation_userId_dataSet(user_dates_group, user_group_name)
 		users_dataSet_list += tmp_list
-		print('process buildingid{}\t{}'.format(user_groupName, len(users_dataSet_list)))
+		print('process userId{}\t{}'.format(user_group_name, len(users_dataSet_list)))
 
 	return users_dataSet_list
 
@@ -122,7 +142,7 @@ def delete_first_or_last_na(dataSet):
 # 刪除缺值之門檻值
 def dorpna_threshold(dataSet, threshold):
 	period_sum = 96
-	# uuid, buildingId, reportTime
+	# uuid, userId, reportTime
 	another_column_sum = 3
 	# return dataSet.dropna(thresh=(period_sum - threshold + another_column_sum))
 	return dataSet.dropna(thresh=(11 - threshold + 1))
@@ -196,10 +216,10 @@ def process_na(dataSet, peroid_column, threshold):
 	delete_before_count = len(dataSet)
 	dataSet = dataSet.apply(process_period_na, axis=1)
 	dataSet = dataSet.dropna(how='all')
-	
+
 	# 轉型別
 	dataSet['uuid'] = dataSet['uuid'].astype(np.int64).astype(str)
-	dataSet['buildingId'] = dataSet['buildingId'].astype(int)
+	dataSet['userId'] = dataSet['userId'].astype(int)
 	dataSet = transform_time(dataSet, column='reportTime', format='%Y-%m-%d')
 
 	print('刪除無法補值之資料，before: {}, after: {}'.format(delete_before_count, len(dataSet)))
@@ -228,15 +248,15 @@ def peroid_max_min_sum_w(dataSet):
 
 	return dataSet.round({'wMax': 2, 'wMin': 2, 'wSum': 2})
 
-# 過濾 buildingId
-def set_mask_buildingId(dataSet, buildingId):
-	if (buildingId != None):
+# 過濾 userId
+def set_mask_userId(dataSet, userId):
+	if (userId != None):
 		# 只有一個用戶
-		if (isinstance(buildingId, int)):
-			return dataSet['buildingId'] == buildingId
+		if (isinstance(userId, int)):
+			return dataSet['userId'] == userId
 		# 多個用戶
-		elif (isinstance(buildingId, list)):
-			return dataSet['buildingId'].isin(buildingId)
+		elif (isinstance(userId, list)):
+			return dataSet['userId'].isin(userId)
 
 # 過濾 reportTime 的 startTime 和 endTime
 def set_mask_time(dataSet, startTime, endTime):
@@ -253,21 +273,21 @@ def is_Series(series):
 	return isinstance(series, pd.core.series.Series)
 
 # 過濾 dataSet
-def mask_dataSet(dataSet, buildingId, startTime, endTime):
-	mask_buildingId = set_mask_buildingId(dataSet, buildingId)
+def mask_dataSet(dataSet, userId, startTime, endTime):
+	mask_userId = set_mask_userId(dataSet, userId)
 	mask_time = set_mask_time(dataSet, startTime, endTime)
 
-	if ((is_Series(mask_buildingId)) & (is_Series(mask_time))):
-		return dataSet.loc[mask_buildingId & mask_time]
-	elif (is_Series(mask_buildingId)):
-		return dataSet.loc[mask_buildingId]
+	if ((is_Series(mask_userId)) & (is_Series(mask_time))):
+		return dataSet.loc[mask_userId & mask_time]
+	elif (is_Series(mask_userId)):
+		return dataSet.loc[mask_userId]
 	elif (is_Series(mask_time)):
 		return dataSet.loc[mask_time]
 	else:
 		return dataSet
 
-def visualization_single(dataSet, buildingId):
-	peroid_column = m.create_peroid_column()
+def visualization_single(dataSet, userId):
+	peroid_column = create_peroid_column()
 	dataSet = dataSet.loc[:, peroid_column].T
 
 	# grid=False
@@ -280,18 +300,18 @@ def visualization_single(dataSet, buildingId):
 	plt.axis([-1, 97, ymin, ymax])
 	plt.xticks(tick_locations, tick_labels)
 
-	plt.title('data visualization\nbuildingId ' + str(buildingId), fontsize=32)
+	plt.title('data visualization\nuserId ' + str(userId), fontsize=32)
 	plt.xlabel('period', fontsize=20)
 	plt.ylabel('w', fontsize=20)
 
-def visualization_matrix(dataSet, buildingId_len, ncols):
-	grouped = dataSet.groupby('buildingId')
-	peroid_column = m.create_peroid_column()
+def visualization_matrix(dataSet, userId_len, ncols):
+	grouped = dataSet.groupby('userId')
+	peroid_column = create_peroid_column()
 
-	if (buildingId_len % ncols == 0):
-		nrows = buildingId_len // ncols
+	if (userId_len % ncols == 0):
+		nrows = userId_len // ncols
 	else:
-		nrows = (buildingId_len // ncols) + 1
+		nrows = (userId_len // ncols) + 1
 
 	fig, axes = plt.subplots(figsize=(20 * ncols, 6 * nrows),
 							 nrows=nrows, ncols=ncols,
@@ -307,14 +327,14 @@ def visualization_matrix(dataSet, buildingId_len, ncols):
 		ax.set_xticks(tick_locations)
 		ax.set_xticklabels(tick_labels)
 
-		ax.set_title('buildingId ' + str(groupName), fontsize=32)
+		ax.set_title('userId ' + str(groupName), fontsize=32)
 		ax.set_xlabel('period', fontsize=20)
 		ax.set_ylabel('w', fontsize=20)
 	ax.legend()
 	plt.savefig('visualization.svg', dpi=150)
 	plt.show()
 
-#	 nrows = (buildingId_len // ncols + 1, buildingId_len // ncols)[buildingId_len % ncols == 0]
+#	 nrows = (userId_len // ncols + 1, userId_len // ncols)[userId_len % ncols == 0]
 #	 fig, axes = plt.subplots(nrows=nrows, ncols=ncols)
 
 #	 for idx, (groupName, group) in enumerate(grouped):
@@ -335,20 +355,20 @@ def visualization_matrix(dataSet, buildingId_len, ncols):
 #	 plt.suptitle('data visualization', fontsize=40)
 
 # 資料視覺化
-def visualization(dataSet, buildingId=None, startTime=None, endTime=None, drawMode=None, ncols=5):
-	dataSet = mask_dataSet(dataSet, buildingId, startTime, endTime)
+def visualization(dataSet, userId=None, startTime=None, endTime=None, drawMode=None, ncols=5):
+	dataSet = mask_dataSet(dataSet, userId, startTime, endTime)
 
 	# 多個用戶
-	if ((buildingId == None) | (isinstance(buildingId, list))):
-		if (buildingId == None):
-			buildingId_len = len(dataSet['buildingId'].unique())
+	if ((userId == None) | (isinstance(userId, list))):
+		if (userId == None):
+			userId_len = len(dataSet['userId'].unique())
 		else:
-			buildingId_len = len(buildingId)
+			userId_len = len(userId)
 
-		visualization_matrix(dataSet, buildingId_len, ncols=ncols)
+		visualization_matrix(dataSet, userId_len, ncols=ncols)
 	# 只有一個用戶
-	elif (isinstance(buildingId, int)):
-		visualization_single(dataSet, buildingId)
+	elif (isinstance(userId, int)):
+		visualization_single(dataSet, userId)
 
 def main():
 	# 讀取原始 .csv 檔
@@ -365,8 +385,8 @@ def main():
 	delete_outliers_dataSet = transform_time(delete_outliers_dataSet, column='reporttime', format='%Y-%m-%d %H:%M:%S')
 	save_csv(delete_outliers_dataSet, '2_delete_outliers_dataSet.csv')
 
-	# 以 buildingid 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
-	group_dataSet = groupbyData(transform_dataSet)
+	# 以 userId 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
+	group_dataSet = groupbyData(delete_outliers_dataSet, 'userId')
 	save_csv(group_dataSet, '3_group_dataSet.csv')
 
 	# 建立彙整資料欄位
