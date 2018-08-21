@@ -6,15 +6,18 @@ import numpy as np
 '''
 e.g.
 dtype={ 'uuid': str, 'userId': str }
-date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M')
 parse_dates=['reportTime']
 '''
 def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None):
-	return pd.read_csv('data/' + data_path, dtype=dtype, 
+	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, 
                             date_parser=date_parser, parse_dates=parse_dates)
+	return dataFrame
 
 def save_csv(data, data_path):
-	data.to_csv('data/' + data_path, encoding='utf-8', index=False)
+	current_time = pd.Timestamp.now().strftime('%Y-%m-%d-%H-%M-%S')
+	data_path = 'data/{}_{}'.format(current_time, file_name)
+	data.to_csv(data_path, encoding='utf-8', index=False)
 	print('save: ' + data_path)
 
 # 遇到 負數 直接砍，因為發現 sensor 本身有問題
@@ -235,7 +238,7 @@ def hour_mean_w(period_group, dataSet):
 	tmp_list = tmp_dataSet.agg('mean', axis=1)
 	return tmp_list
 
-# 計算 最大需量 和 最大需量
+# 計算 最大需量、最大需量、總用電量
 def peroid_max_min_sum_w(dataSet):
 	peroid_column = create_peroid_column()
 	# 只取所有 period 欄位來計算 max 和 min
@@ -245,10 +248,18 @@ def peroid_max_min_sum_w(dataSet):
 
 	# 把需量轉成小時 (每 4 個 period，會組成一個 tuple)
 	period_groups = kWh_group(peroid_column, 4)
+	# 計算 每小時 (4 個 period) 平均用電
 	tmp_mean_dataSet = pd.DataFrame(list(map(lambda x: hour_mean_w(x, tmp_dataSet), period_groups))).T
-	dataSet['wSum'] = tmp_mean_dataSet.agg('sum', axis=1)
+	# 下面 3 行是原本 list(map(lambda x: hour_mean_w(x, tmp_dataSet), period_groups)) 的詳細版
+	# tmp_list = []
+	# for kWh in period_groups:
+	# 	tmp_list.append(m.hour_mean_w(kWh, tmp_dataSet))	# append Series
 
-	return dataSet.round({'wMax': 2, 'wMin': 2, 'wSum': 2})
+	# 計算 總用電量
+	dataSet['wSum'] = tmp_mean_dataSet.agg('sum', axis=1)
+	# 將 最大需量、最大需量、總用電量 都做四捨五入至小數第二位
+	dataSet = dataSet.round({'wMax': 2, 'wMin': 2, 'wSum': 2})
+	return dataSet
 
 # 過濾 userId
 def set_mask_userId(dataSet, userId):
