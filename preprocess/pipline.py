@@ -5,26 +5,21 @@ import numpy as np
 
 import preprocess.user_load_data as user_load_data
 
-# 讀取原始 .csv 檔
-def load_original_dataSet(file_name='table_0502.csv'):
-	dataSet = user_load_data.load_dataset(file_name)
-	return dataSet
-
 # 先做 channelId 0
 def only_use_channelId_0_dataSet(dataSet):
-	dataSet = dataSet[dataSet['channelid'] == 0]
+	dataSet = dataSet[dataSet['channelId'] == 0]
 	return dataSet
 
 # 刪除異常值，因為發現 sensor 本身有問題
 def delete_outliers_dataSet(dataSet):
 	dataSet = user_load_data.delete_outliers(dataSet)
 	# 改變 'reporttime' 欄位 type (string to datetime)
-	dataSet = user_load_data.transform_time(dataSet, column='reporttime', format='%Y-%m-%d %H:%M:%S')
+	dataSet = user_load_data.transform_time(dataSet, column='reportTime', format='%Y-%m-%d %H:%M:%S')
 	return dataSet
 
 # 以 userId 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 def group_dataSet(dataSet):
-	dataSet = user_load_data.groupbyData(delete_outliers_dataSet, 'userId')
+	dataSet = user_load_data.groupbyData(dataSet, 'userId')
 	return dataSet
 
 # 彙整與轉置多個使用者的用電資料 (96 期)

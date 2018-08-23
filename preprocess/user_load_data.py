@@ -6,11 +6,11 @@ import numpy as np
 '''
 e.g.
 dtype={ 'uuid': str, 'userId': str }
-date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M')
+date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M-%S')
 parse_dates=['reportTime']
 '''
-def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None):
-	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates)
+def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None, index_col=None):
+	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates, index_col=index_col)
 	return dataFrame
 
 def save_csv(data, file_name):
@@ -33,7 +33,7 @@ def transform_time(dataeSet, column, format):
 # 以某欄位 (e.g. userId) 作為分類
 # 彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 def groupbyData(dataSet, column):
-	group_dataSet = dataSet.groupby([column, pd.Grouper(key='reporttime', freq='15T')])['w'].mean().round(2).reset_index()
+	group_dataSet = dataSet.groupby([column, pd.Grouper(key='reportTime', freq='15T')])['w'].mean().round(2).reset_index()
 	return group_dataSet
 
 # 建立以日為單位之欄位 (96 期)
@@ -57,13 +57,13 @@ def transpose_data_electricity_watt(date_df):
 
 	# 若已有 96 筆，就可以不用補植
 	if (len(date_df) == 96):
-		return date_df.drop(['reporttime'], axis=1)['w'].tolist()
+		return date_df.drop(['reportTime'], axis=1)['w'].tolist()
     # 若未有 96 筆，就必須將缺的 period 補成 96 筆
 	else:
 		for index, row in date_df.iterrows():
 			periods = create_periods_datetime_list()
 			# 直到找到該時段的 index
-			while (row['reporttime'].time() != periods[period_index]):
+			while (row['reportTime'].time() != periods[period_index]):
 				df_list.append(None)
 				period_index += 1
 
@@ -128,7 +128,7 @@ def consolidation_all_dataSet(dataSet):
 	# user_group_name (index)：單一用戶編號，user_group (value)：單一用戶用電資料
 	for user_group_name, user_group in users_group:
 		# 單一用戶以 reporttime 欄位的每一天 groupby
-		user_dates_group = user_group.groupby(pd.Grouper(key='reporttime', freq='1D'))
+		user_dates_group = user_group.groupby(pd.Grouper(key='reportTime', freq='1D'))
 		# 彙整與轉置單一用戶的用電資料 (96 期)
 		tmp_list = consolidation_userId_dataSet(user_dates_group, user_group_name)
 		users_dataSet_list += tmp_list
@@ -173,7 +173,7 @@ def fill_period_na(row, na_periods, current_idx):
 def process_period_na(row):
 	# print('\n' + '=' * 40)
 	na_periods = {}
-	na_periods['colume'] = row.index[row.isnull()].tolist() 
+	na_periods['colume'] = row.index[row.isnull()].tolist()
 	na_periods['len'] = len(na_periods['colume'])
 
 	if (na_periods['len'] == 0):
@@ -201,7 +201,9 @@ def process_period_na(row):
 
 				# print('-' * 40)
 			# print(na_periods['list'][na_periods['len'] - 1])
-# 			fill_period_na(row, na_periods, na_periods['len'] - 1)
+
+			# 補最後一個 na 的欄位
+			fill_period_na(row, na_periods, na_periods['len'] - 1)
 # 	print('fill row', row['uuid'], type(row['uuid']), row.name)
 	return row
 
@@ -217,6 +219,7 @@ def process_na(dataSet, peroid_column, threshold):
 	delete_before_count = len(dataSet)
     # process_period_na function：補值
 	dataSet = dataSet.apply(process_period_na, axis=1)
+	# 刪除所有欄位都是 na 的幾列
 	dataSet = dataSet.dropna(how='all')
 
 	# 轉型別
