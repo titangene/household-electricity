@@ -10,11 +10,10 @@ date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M')
 parse_dates=['reportTime']
 '''
 def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None):
-	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, 
-                            date_parser=date_parser, parse_dates=parse_dates)
+	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates)
 	return dataFrame
 
-def save_csv(data, data_path):
+def save_csv(data, file_name):
 	current_time = pd.Timestamp.now().strftime('%Y-%m-%d-%H-%M-%S')
 	data_path = 'data/{}_{}'.format(current_time, file_name)
 	data.to_csv(data_path, encoding='utf-8', index=False)
@@ -382,41 +381,3 @@ def visualization(dataSet, userId=None, startTime=None, endTime=None, drawMode=N
 	# 只有一個用戶
 	elif (isinstance(userId, int)):
 		visualization_single(dataSet, userId)
-
-def main():
-	# 讀取原始 .csv 檔
-	dataSet = load_dataset('table_0502.csv')
-
-	# 先做 channelId 0
-	channelId_0_dataSet = dataSet[dataSet['channelid'] == 0]
-	save_csv(channelId_0_dataSet, '1_channelId_0_dataSet.csv')
-
-	# 遇到 負數 直接砍，因為發現 sensor 本身有問題
-	delete_outliers_dataSet = delete_outliers(channelId_0_dataSet)
-
-	# 改變 'reporttime' 欄位 type (string to datetime)
-	delete_outliers_dataSet = transform_time(delete_outliers_dataSet, column='reporttime', format='%Y-%m-%d %H:%M:%S')
-	save_csv(delete_outliers_dataSet, '2_delete_outliers_dataSet.csv')
-
-	# 以 userId 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
-	group_dataSet = groupbyData(delete_outliers_dataSet, 'userId')
-	save_csv(group_dataSet, '3_group_dataSet.csv')
-
-	# 建立彙整資料欄位
-	peroid_column = create_consolidation_column()
-
-	# 彙整與轉置多個使用者的用電資料 (96 期)
-	consolidation_dataSet_list = consolidation_all_dataSet(group_dataSet)
-	consolidation_dataSet = pd.DataFrame(consolidation_dataSet_list, columns=peroid_column)
-	save_csv(consolidation_dataSet, '4_consolidation_dataSet.csv')
-
-	# 缺值處理
-	fillna_dataSet = process_na(consolidation_dataSet, peroid_column, threshold=2)
-	save_csv(fillna_dataSet, '5_fillna_dataSet.csv')
-
-	# 計算 最大需量、最大需量、總用電量
-	max_min_sum_w_dataSet = peroid_max_min_sum_w(fillna_dataSet)
-	save_csv(max_min_sum_w_dataSet, '6_max_min_sum_w_dataSet.csv')
-
-if (__name__ == '__main__'):
-	main()
