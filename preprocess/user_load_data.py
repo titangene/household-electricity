@@ -24,14 +24,14 @@ def save_csv(data, file_name):
 
 # 遇到 負數 直接砍，因為發現 sensor 本身有問題
 # 預設刪除 > 10000 或 < 0 的值
-def delete_outliers(dataeSet, threshold=10000):
-	return dataeSet[(dataeSet['w'] >= 0) & (dataeSet['w'] <= threshold)]
+def delete_outliers(dataSet, threshold=10000):
+	return dataSet[(dataSet['w'] >= 0) & (dataSet['w'] <= threshold)]
 
 # string to datetime
 # e.g. format='%Y-%M-%d', or '%Y-%m-%d %H:%M:%S' ...
-def transform_time(dataeSet, column, format):
-	dataeSet[column] = pd.to_datetime(dataeSet[column], format=format)
-	return dataeSet
+def transform_time(dataSet, column, format):
+	dataSet[column] = pd.to_datetime(dataSet[column], format=format)
+	return dataSet
 
 # 以某欄位 (e.g. userId) 作為分類
 # 彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
