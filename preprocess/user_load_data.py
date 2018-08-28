@@ -13,8 +13,11 @@ def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None, inde
 	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates, index_col=index_col)
 	return dataFrame
 
+def get_current_time():
+	return pd.Timestamp.now().strftime('%Y-%m-%d-%H-%M-%S')
+
 def save_csv(data, file_name):
-	current_time = pd.Timestamp.now().strftime('%Y-%m-%d-%H-%M-%S')
+	current_time = get_current_time()
 	data_path = 'data/{}_{}'.format(current_time, file_name)
 	data.to_csv(data_path, encoding='utf-8', index=False)
 	print('save: ' + data_path)
@@ -328,12 +331,11 @@ def visualization_matrix(dataSet, userId_len, ncols):
 	else:
 		nrows = (userId_len // ncols) + 1
 
-	fig, axes = plt.subplots(figsize=(20 * ncols, 6 * nrows),
-							 nrows=nrows, ncols=ncols,
+	fig, axes = plt.subplots(nrows, ncols, figsize=(20 * ncols, 6 * nrows),
 							 gridspec_kw=dict(hspace=0.5, wspace=0.12))
 
 	targets = zip(grouped.groups.keys(), axes.flatten())
-	for i, (groupName, ax) in enumerate(targets):
+	for idx, (groupName, ax) in enumerate(targets):
 		ax.plot(grouped.get_group(groupName).loc[:, peroid_column].T, alpha=0.5)
 		# 設定 X 軸位置
 		ax.set_xlim(-1, 97)
