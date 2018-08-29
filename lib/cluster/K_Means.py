@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn import metrics
 
-from preprocess import user_load_data
+from ..preprocess import user_load_data
 
 # 將 K-Means 每個集群中心的坐標資料存成 dataFrame
 def get_cluster_centers_dataFrame(cluster_centers):
