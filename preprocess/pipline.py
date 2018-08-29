@@ -40,3 +40,10 @@ def process_na_dataSet(dataSet):
 def calc_peroid_max_min_sum_w(dataSet):
 	dataSet = user_load_data.peroid_max_min_sum_w(dataSet)
 	return dataSet
+
+def load_preprocess_dataSet(file_path):
+    dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%d')
+    dataSet = user_load_data.load_dataset(file_path, dtype={ 'uuid': str, 'userId': str },
+                                          date_parser=dateparse, parse_dates=['reportTime'])
+    dataSet.set_index('uuid', inplace=True)
+    return dataSet
