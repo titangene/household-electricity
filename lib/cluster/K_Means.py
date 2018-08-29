@@ -156,3 +156,46 @@ def nxm_clusters_visualization(dataSet, min_clusters, max_clusters):
 	# 儲存 K-Means n ~ m 分群的視覺化圖
 	save_nxm_clusters_visualization(min_clusters, max_clusters)
 	plt.show()
+
+# 儲存 K-Means n 分群的視覺化矩陣圖
+def save_n_clusters_visualization_matrix(n_clusters):
+	current_time = user_load_data.get_current_time()
+	file_name = 'K-Means_cluster_{}_visualization_matrix.svg'.format(n_clusters)
+	img_path = 'img/{}_{}'.format(current_time, file_name)
+	plt.savefig(img_path, dpi=150)
+
+# K-Means n 分群的視覺化矩陣圖
+def n_clusters_visualization_matrix(dataSet, n_clusters, ncols):
+	peroid_column = user_load_data.create_peroid_column()
+	kmeans_fit = KMeans(n_clusters=n_clusters).fit(dataSet[peroid_column])
+
+	dataSet['cluster'] = kmeans_fit.labels_
+	grouped = dataSet.groupby('cluster')
+	# 分群後，刪除 cluster 欄位
+	dataSet.drop(['cluster'], axis=1, inplace=True)
+
+	if (n_clusters % ncols == 0):
+		nrows = n_clusters // ncols
+	else:
+		nrows = (n_clusters // ncols) + 1
+	fig, axes = plt.subplots(nrows, ncols, figsize=(20 * ncols, 6 * nrows),
+							 gridspec_kw=dict(hspace=0.5, wspace=0.12))
+
+	targets = zip(grouped.groups.keys(), kmeans_fit.cluster_centers_, axes.flatten())
+	for idx, (cluster_label, cluster_center, ax) in enumerate(targets):
+		ax.plot(grouped.get_group(cluster_label).loc[:, peroid_column].T, alpha=0.13, color='gray')
+		# red solid line and point marker
+		ax.plot(cluster_center, 'r.-', alpha=0.5)
+		# 設定 X 軸位置
+		ax.set_xlim(-1, 97)
+		tick_locations = [0] + list(range(3, 97, 4))
+		tick_labels =  [1] + list(range(4, 97, 4))
+		ax.set_xticks(tick_locations)
+		ax.set_xticklabels(tick_labels)
+
+		ax.set_title('label_ ' + str(cluster_label), fontsize=32)
+		ax.set_xlabel('period', fontsize=20)
+		ax.set_ylabel('w', fontsize=20)
+	# 儲存 K-Means n 分群的視覺化矩陣圖
+	save_n_clusters_visualization_matrix(n_clusters)
+	plt.show()
