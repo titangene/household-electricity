@@ -1,7 +1,6 @@
-import matplotlib
-import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 '''
 e.g.
@@ -9,18 +8,19 @@ dtype={ 'uuid': str, 'userId': str }
 date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M-%S')
 parse_dates=['reportTime']
 '''
-def load_dataset(data_path, dtype=None, date_parser=None, parse_dates=None, index_col=None):
-	dataFrame = pd.read_csv('data/' + data_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates, index_col=index_col)
+def load_dataset(file_path, dtype=None, date_parser=None, parse_dates=None, index_col=None):
+	file_path = 'data/' + file_path
+	dataFrame = pd.read_csv(file_path, dtype=dtype, date_parser=date_parser, parse_dates=parse_dates, index_col=index_col)
 	return dataFrame
 
 def get_current_time():
 	return pd.Timestamp.now().strftime('%Y-%m-%d-%H-%M-%S')
 
-def save_csv(data, file_name):
+def save_csv(dataSet, file_name):
 	current_time = get_current_time()
-	data_path = 'data/{}_{}'.format(current_time, file_name)
-	data.to_csv(data_path, encoding='utf-8', index=False)
-	print('save: ' + data_path)
+	file_path = 'data/{}_{}'.format(current_time, file_name)
+	dataSet.to_csv(file_path, encoding='utf-8', index=False)
+	print('save: ' + file_path)
 
 # 遇到 負數 直接砍，因為發現 sensor 本身有問題
 # 預設刪除 > 10000 或 < 0 的值

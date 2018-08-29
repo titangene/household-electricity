@@ -1,9 +1,8 @@
-import matplotlib
-import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
-import preprocess.user_load_data as user_load_data
+from preprocess import user_load_data
 
 # 先做 channelId 0
 def only_use_channelId_0_dataSet(dataSet):
