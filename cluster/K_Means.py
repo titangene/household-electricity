@@ -76,3 +76,83 @@ def evaluate_visualization(dataSet, min_clusters, max_clusters):
 
 #	 print('Silhouette Coefficient:', silhouette_avgs)
 #	 print('Calinski-Harabasz Index:', calinski_harabaz_avgs)
+
+'''
+將 K-Means 分群中各屬於該群資料和中心點畫成子圖，
+一次 K-Means 分群會畫成一列 (有 n 群就會畫成 n 欄)
+
+values:
+- cluster_label: 該群標籤
+- cluster_center: 該群中心點
+- ax: 畫子圖用 (type: AxesSubplot)
+grouped: 以 cluster (群集) 欄位 groupby 的某一群用電資料
+n_clusters: K-Means 分成幾群
+'''
+def cluster_axes_plot(values, grouped, n_clusters, peroid_column):
+	cluster_label, cluster_center, ax = values
+
+	ax.plot(grouped.get_group(cluster_label).loc[:, peroid_column].T, alpha=0.13, color='gray')
+	# red solid line and point marker
+	ax.plot(cluster_center, 'r.-', alpha=0.5)
+
+	ax.set_xlim(-1, 97)
+	tick_locations = [0] + list(range(3, 97, 4))
+	tick_labels =  [1] + list(range(4, 97, 4))
+	ax.set_xticks(tick_locations)
+	ax.set_xticklabels(tick_labels)
+
+	ax.set_title('{} clusters: label_{}'.format(n_clusters, cluster_label), fontsize=32)
+	ax.set_xlabel('period', fontsize=20)
+	ax.set_ylabel('w', fontsize=20)
+
+	print('n_clusters:{}, label:{}'.format(n_clusters, cluster_label))
+
+'''
+K-Means 分成 n 群，並畫出每群的資料和中心點
+
+values:
+- n_clusters: K-Means 分成幾群
+- ax_row: 畫子圖的某一列 (type: ndarray, 內有多個 AxesSubplot)
+dataSet: 彙整的用電資料
+peroid_column: 以日為單位之欄位 (96 期)，['period_1', ... , 'period_96']
+'''
+def nxm_clusters_plot(values, dataSet, peroid_column):
+	n_clusters, ax_row = values
+	kmeans_fit = KMeans(n_clusters=n_clusters)
+	kmeans_fit.fit(dataSet.loc[:, peroid_column])
+
+	dataSet['cluster'] = kmeans_fit.labels_
+	grouped = dataSet.groupby('cluster')
+	# 分群後，刪除 cluster 欄位
+	dataSet.drop(['cluster'], axis=1, inplace=True)
+	targets = zip(grouped.groups.keys(), kmeans_fit.cluster_centers_, ax_row)
+	# 將 K-Means 分群中各屬於該群資料和中心點畫成子圖，
+	# 一次 K-Means 分群會畫成一列 (有 n 群就會畫成 n 欄)
+	axes_plot_func = lambda values: cluster_axes_plot(values, grouped, n_clusters, peroid_column)
+	list(map(axes_plot_func, targets))
+
+# 儲存 K-Means n ~ m 分群的視覺化圖
+def save_nxm_clusters_visualization(min_clusters, max_clusters):
+	current_time = user_load_data.get_current_time()
+	file_name = 'K-Means_cluster_{}-{}_visualization.svg'.format(min_clusters, max_clusters)
+	img_path = 'img/{}_{}'.format(current_time, file_name)
+	plt.savefig(img_path, dpi=150)
+
+# K-Means n ~ m 分群的視覺化圖
+def nxm_clusters_visualization(dataSet, min_clusters, max_clusters):
+	peroid_column = user_load_data.create_peroid_column()
+	# 建立 (min_clusters ~ max_clusters) 的群集數 list
+	n_clusters_list = range(min_clusters, max_clusters + 1)
+	ncols, nrows = max_clusters, len(n_clusters_list)
+
+	fig, axes = plt.subplots(nrows, ncols, figsize=(20 * ncols, 6 * nrows),
+							 gridspec_kw=dict(hspace=0.5, wspace=0.12))
+	# colors = generate_colors(max_clusters)
+
+	targets = zip(n_clusters_list, axes)
+	# K-Means 分成 n 群，並畫出每群的資料和中心點
+	plot_func = lambda values: nxm_clusters_plot(values, dataSet, peroid_column)
+	list(map(plot_func, targets))
+	# 儲存 K-Means n ~ m 分群的視覺化圖
+	save_nxm_clusters_visualization(min_clusters, max_clusters)
+	plt.show()
