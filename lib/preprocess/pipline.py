@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from preprocess import user_load_data
+from . import user_load_data
 
 # 先做 channelId 0
 def only_use_channelId_0_dataSet(dataSet):
