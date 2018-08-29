@@ -47,3 +47,8 @@ def load_preprocess_dataSet(file_path):
                                           date_parser=dateparse, parse_dates=['reportTime'])
     dataSet.set_index('uuid', inplace=True)
     return dataSet
+
+def get_peroid_column_dataSet(dataSet):
+    peroid_column = user_load_data.create_peroid_column()
+    dataSet = dataSet[['userId'] + peroid_column][:1000]
+    return dataSet
