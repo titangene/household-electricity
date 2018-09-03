@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 '''
 e.g.
 dtype={ 'uuid': str, 'userId': str }
-date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M-%S')
+date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 parse_dates=['reportTime']
 '''
 def load_dataset(file_path, dtype=None, date_parser=None, parse_dates=None, index_col=None):

@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn import metrics
+from sklearn.cluster import KMeans, MiniBatchKMeans
 
 from ..preprocess import user_load_data
 
@@ -14,7 +14,8 @@ def get_cluster_centers_dataFrame(cluster_centers):
 	# 增加 Index
 	centroids_df['index'] = list(range(0, len(centroids_df)))
 	# 重新排列欄位順序，讓 Index 欄位變成最前面
-	centroids_df = centroids_df.reindex(sorted(centroids_df.columns), axis=1)
+	peroid_and_index_column = ['index'] + peroid_column
+	centroids_df = centroids_df.reindex(peroid_and_index_column, axis=1)
 	return centroids_df
 
 # 將 K-Means 每個集群中心的坐標資料資料存成 CSV
