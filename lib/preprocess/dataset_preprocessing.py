@@ -3,6 +3,33 @@ import pandas as pd
 
 from . import user_load_data
 
+def start():
+	# 讀取原始 .csv 檔
+	dataSet = user_load_data.load_dataset('row_dataset.csv')
+	dataSet['User_id'] = dataSet['User_id'].astype(str)
+	dataSet['channelid'] = dataSet['channelid'].astype(int)
+	dataSet = user_load_data.transform_time(dataSet, 'Reporttime', format='%Y-%m-%d %H:%M:%S')
+
+	# 先做 channelid 0
+	dataSet = only_use_channelId_0_dataSet(dataSet)
+
+	# 刪除異常值，因為發現 sensor 本身有問題
+	dataSet = delete_outliers_dataSet(dataSet)
+
+	# 以 User_id 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
+	dataSet = group_dataSet(dataSet)
+
+	# 彙整與轉置多個使用者的用電資料 (96 期)
+	dataSet = consolidation_dataSet(dataSet)
+
+	# 缺值處理
+	dataSet = process_na_dataSet(dataSet)
+
+	# 計算 最大需量、最大需量、總用電量
+	dataSet = calc_peroid_max_min_sum_w(dataSet)
+	user_load_data.save_csv(dataSet, 'for_clustering.csv')
+	return dataSet
+
 # 先做 channelid 0
 def only_use_channelId_0_dataSet(dataSet):
 	dataSet = dataSet[dataSet['channelid'] == 0]
@@ -17,7 +44,7 @@ def delete_outliers_dataSet(dataSet):
 
 # 以 User_id 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 def group_dataSet(dataSet):
-	dataSet = user_load_data.groupbyData(dataSet, 'User_id')
+	dataSet = user_load_data.groupbyData(dataSet, column='User_id')
 	return dataSet
 
 # 彙整與轉置多個使用者的用電資料 (96 期)
