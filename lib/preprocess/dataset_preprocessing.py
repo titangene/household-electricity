@@ -6,7 +6,7 @@ from . import user_load_data
 def start():
 	# 讀取原始 .csv 檔
 	dataSet = user_load_data.load_dataset('row_dataset.csv')
-	dataSet['User_id'] = dataSet['User_id'].astype(str)
+	dataSet['User_ID'] = dataSet['User_ID'].astype(str)
 	dataSet['channelid'] = dataSet['channelid'].astype(int)
 	dataSet = user_load_data.transform_time(dataSet, 'Reporttime', format='%Y-%m-%d %H:%M:%S')
 
@@ -16,7 +16,7 @@ def start():
 	# 刪除異常值，因為發現 sensor 本身有問題
 	dataSet = delete_outliers_dataSet(dataSet)
 
-	# 以 User_id 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
+	# 以 User_ID 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 	dataSet = group_dataSet(dataSet)
 
 	# 彙整與轉置多個使用者的用電資料 (96 期)
@@ -42,9 +42,9 @@ def delete_outliers_dataSet(dataSet):
 	dataSet = user_load_data.transform_time(dataSet, column='Reporttime', format='%Y-%m-%d %H:%M:%S')
 	return dataSet
 
-# 以 User_id 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
+# 以 User_ID 分類，彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 def group_dataSet(dataSet):
-	dataSet = user_load_data.groupbyData(dataSet, column='User_id')
+	dataSet = user_load_data.groupbyData(dataSet, column='User_ID')
 	return dataSet
 
 # 彙整與轉置多個使用者的用電資料 (96 期)
@@ -69,12 +69,12 @@ def calc_peroid_max_min_sum_w(dataSet):
 
 def load_preprocess_dataSet(file_path):
     dateparse = lambda x: pd.datetime.strptime(x, '%Y-%m-%d')
-    dataSet = user_load_data.load_dataset(file_path, dtype={ 'UUID': str, 'User_id': str },
+    dataSet = user_load_data.load_dataset(file_path, dtype={ 'UUID': str, 'User_ID': str },
                                           date_parser=dateparse, parse_dates=['Reporttime'])
     dataSet.set_index('UUID', inplace=True)
     return dataSet
 
 def get_peroid_column_dataSet(dataSet):
     peroid_column = user_load_data.create_peroid_column()
-    dataSet = dataSet[['User_id'] + peroid_column][:1000]
+    dataSet = dataSet[['User_ID'] + peroid_column][:1000]
     return dataSet
