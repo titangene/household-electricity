@@ -3,9 +3,9 @@ import pandas as pd
 
 '''
 e.g.
-dtype={ 'uuid': str, 'userId': str }
+dtype={ 'UUID': str, 'User_id': str }
 date_parser=lambda x: pd.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-parse_dates=['reportTime']
+parse_dates=['Reporttime']
 '''
 def load_dataset(file_path, dtype=None, date_parser=None, parse_dates=None, index_col=None):
 	file_path = 'data/' + file_path
@@ -32,21 +32,21 @@ def transform_time(dataSet, column, format):
 	dataSet[column] = pd.to_datetime(dataSet[column], format=format)
 	return dataSet
 
-# 以某欄位 (e.g. userId) 作為分類
+# 以某欄位 (e.g. User_id) 作為分類
 # 彙整每個使用者用電資料為每 15 分鐘一筆，w 四捨五入至小數 2 位
 def groupbyData(dataSet, column):
-	group_dataSet = dataSet.groupby([column, pd.Grouper(key='reportTime', freq='15T')])['w'].mean().round(2).reset_index()
+	group_dataSet = dataSet.groupby([column, pd.Grouper(key='Reporttime', freq='15T')])['w'].mean().round(2).reset_index()
 	return group_dataSet
 
 # 建立以日為單位之欄位 (96 期)
-# return ['period_1', 'period_2', ... , 'period_95', 'period_96']
+# return ['1-th', '2-th', ... , '95-th', '96-th']
 def create_peroid_column():
-	return ['period_' + str(idx) for idx in range(1, 97)]
+	return [str(idx) + '-th' for idx in range(1, 97)]
 
 # 建立彙整資料欄位
-# return ['uuid', 'userId', 'reportTime', 'period_1', ... , 'period_96']
+# return ['UUID', 'User_id', 'Reporttime', '1-th', ... , '96-th']
 def create_consolidation_column():
-	return ['uuid', 'userId', 'reportTime'] + create_peroid_column()
+	return ['UUID', 'User_id', 'Reporttime'] + create_peroid_column()
 
 # 建立新的 period 時間 (每 15 分鐘一筆，一天共有 96 筆) list
 def create_periods_datetime_list():
@@ -59,17 +59,17 @@ def transpose_data_electricity_watt(date_df):
 
 	# 若已有 96 筆，就可以不用補植
 	if (len(date_df) == 96):
-		return date_df.drop(['reportTime'], axis=1)['w'].tolist()
+		return date_df.drop(['Reporttime'], axis=1)['w'].tolist()
     # 若未有 96 筆，就必須將缺的 period 補成 96 筆
 	else:
 		for index, row in date_df.iterrows():
 			periods = create_periods_datetime_list()
 			# 直到找到該時段的 index
-			while (row['reportTime'].time() != periods[period_index]):
+			while (row['Reporttime'].time() != periods[period_index]):
 				df_list.append(None)
 				period_index += 1
 
-			# print(period_index, row['reporttime'].time(), periods[period_index], row['reporttime'].time() == periods[period_index])
+			# print(period_index, row['Reporttime'].time(), periods[period_index], row['Reporttime'].time() == periods[period_index])
 			df_list.append(row['w'])
 			period_index += 1
 
@@ -84,18 +84,18 @@ def transpose_data_electricity_watt(date_df):
 
 # 建立一天的資料集
 def set_day_dataSet(uuid, userId, reportTime, date_df):
-	# print(" ", reportTime, len(date_df))
+	# print(" ", Reporttime, len(date_df))
 	data_watt_list = transpose_data_electricity_watt(date_df)
 
-	# [uuid, userId, reportTime, period_1, .period_2, ..., period_96]
+	# [UUID, User_id, Reporttime, 1-th, 2-th, ..., 96-th]
 	dataSet_list = [uuid, userId, reportTime] + data_watt_list
 
 	# if (len(dataSet_list) != 99):
 	# 	print(dataSet_list[2], len(dataSet_list))
 	return dataSet_list
 
-# 生成 uuid
-# e.g. userId: 1, channelId: 0, reportTime: '20180815' -> '10201808015'
+# 生成 UUID
+# e.g. User_id: 1, channelid: 0, Reporttime: '20180815' -> '10201808015'
 def generate_uuid(userId, channelId, reportTime):
 	return '{}{}{}'.format(userId, channelId, reportTime)
 
@@ -106,7 +106,7 @@ def consolidation_userId_dataSet(user_dates_group, user_group_name):
 	# date_group_name (index)：單一用戶一天之時間，date_group (value)：單一用戶一天的用電資料
 	for date_group_name, date_group in user_dates_group:
 		date_df = date_group.reset_index()
-		date_df = date_df.drop(['index', 'userId'], axis=1)
+		date_df = date_df.drop(['index', 'User_id'], axis=1)
 
 		userId = user_group_name
 		channelId = 0
@@ -124,47 +124,47 @@ def consolidation_userId_dataSet(user_dates_group, user_group_name):
 
 # 彙整與轉置多個使用者的用電資料 (96 期)
 def consolidation_all_dataSet(dataSet):
-	users_group = dataSet.groupby('userId')
+	users_group = dataSet.groupby('User_id')
 	users_dataSet_list = []
 
 	# user_group_name (index)：單一用戶編號，user_group (value)：單一用戶用電資料
 	for user_group_name, user_group in users_group:
-		# 單一用戶以 reporttime 欄位的每一天 groupby
-		user_dates_group = user_group.groupby(pd.Grouper(key='reportTime', freq='1D'))
+		# 單一用戶以 Reporttime 欄位的每一天 groupby
+		user_dates_group = user_group.groupby(pd.Grouper(key='Reporttime', freq='1D'))
 		# 彙整與轉置單一用戶的用電資料 (96 期)
 		tmp_list = consolidation_userId_dataSet(user_dates_group, user_group_name)
 		users_dataSet_list += tmp_list
-		print('process userId{}\t{}'.format(user_group_name, len(users_dataSet_list)))
+		print('process User_id{}\t{}'.format(user_group_name, len(users_dataSet_list)))
 
 	return users_dataSet_list
 
 # 刪除最前或最後有缺值之資料
 def delete_first_or_last_na(dataSet):
-	return dataSet.dropna(subset=['period_1', 'period_96'])
+	return dataSet.dropna(subset=['1-th', '96-th'])
 
 # 刪除缺值之門檻值
 def dorpna_threshold(dataSet, threshold):
 	period_sum = 96
-	# uuid, userId, reportTime
+	# UUID, User_id, Reporttime
 	another_column_sum = 3
 	return dataSet.dropna(thresh=(period_sum - threshold + another_column_sum))
 # 	return dataSet.dropna(thresh=(11 - threshold + 1))
 
-# 將 period_10 轉成 10
+# 將 10-th 轉成 10
 def transforma_period_list_number(na_periods_colume):
-	return [int(period.replace('period_', '')) for period in na_periods_colume]
+	return [int(period.replace('-th', '')) for period in na_periods_colume]
 
 # period 補值
 def fill_period_na(row, na_periods, current_idx):
 	current_period = na_periods['colume'][current_idx]
 	na_periods['current'] = na_periods['list'][current_idx]
-	prev_period = 'period_' + str(na_periods['current'] - 1)
-	next_period = 'period_' + str(na_periods['current'] + 1)
+	prev_period = str(na_periods['current'] - 1) + '-th'
+	next_period = str(na_periods['current'] + 1) + '-th'
 
 	period_ave = (row[next_period] + row[prev_period]) / 2
 
 	# print('{}: {}, p{}_{}, n{}_{} = c{}-{}'.format(
-	# 	row['uuid'], 'fill', 
+	# 	row['UUID'], 'fill',
 	# 	(na_periods['current'] - 1), row[prev_period],
 	# 	(na_periods['current'] + 1), row[next_period],
 	# 	na_periods['current'], round(period_ave, 2)))
@@ -179,11 +179,11 @@ def process_period_na(row):
 	na_periods['len'] = len(na_periods['colume'])
 
 	if (na_periods['len'] == 0):
-		# print('o', row['uuid'], na_periods['len'])
+		# print('o', row['UUID'], na_periods['len'])
 		return row
 	else:
 		na_periods['list'] = transforma_period_list_number(na_periods['colume'])
-		# print('x', row['uuid'], na_periods['len'], na_periods['colume'])
+		# print('x', row['UUID'], na_periods['len'], na_periods['colume'])
 
 		if (na_periods['len'] == 1):
 			fill_period_na(row, na_periods, 0)
@@ -194,9 +194,9 @@ def process_period_na(row):
 				# print(na_periods['current'], na_periods['next'])
 
 				if (na_periods['next'] - na_periods['current'] == 1):
-					row[row['uuid'] != row['uuid']]
-					# print(row['uuid'], 'drop', na_periods['list'])
-					# print('drop row', row['uuid'], row.name)
+					row[row['UUID'] != row['UUID']]
+					# print(row['UUID'], 'drop', na_periods['list'])
+					# print('drop row', row['UUID'], row.name)
 					return np.nan
 				else:
 					fill_period_na(row, na_periods, idx)
@@ -206,7 +206,7 @@ def process_period_na(row):
 
 			# 補最後一個 na 的欄位
 			fill_period_na(row, na_periods, na_periods['len'] - 1)
-# 	print('fill row', row['uuid'], type(row['uuid']), row.name)
+# 	print('fill row', row['UUID'], type(row['UUID']), row.name)
 	return row
 
 def process_na(dataSet, peroid_column, threshold):
@@ -225,9 +225,9 @@ def process_na(dataSet, peroid_column, threshold):
 	dataSet = dataSet.dropna(how='all')
 
 	# 轉型別
-	dataSet['uuid'] = dataSet['uuid'].astype(np.int64).astype(str)
-	dataSet['userId'] = dataSet['userId'].astype(int)
-	dataSet = transform_time(dataSet, column='reportTime', format='%Y-%m-%d')
+	dataSet['UUID'] = dataSet['UUID'].astype(np.int64).astype(str)
+	dataSet['User_id'] = dataSet['User_id'].astype(int)
+	dataSet = transform_time(dataSet, column='Reporttime', format='%Y-%m-%d')
 
 	print('刪除無法補值之資料，before: {}, after: {}'.format(delete_before_count, len(dataSet)))
 	return dataSet
@@ -247,8 +247,8 @@ def peroid_max_min_sum_w(dataSet):
 	peroid_column = create_peroid_column()
 	# 只取所有 period 欄位來計算 max 和 min
 	tmp_dataSet = dataSet.loc[:, peroid_column]
-	dataSet['wMax'] = tmp_dataSet.agg('max', axis=1)
-	dataSet['wMin'] = tmp_dataSet.agg('min', axis=1)
+	dataSet['Max_load'] = tmp_dataSet.agg('max', axis=1)
+	dataSet['Min_load'] = tmp_dataSet.agg('min', axis=1)
 
 	# 把需量轉成小時 (每 4 個 period，會組成一個 tuple)
 	period_groups = kWh_group(peroid_column, 4)
@@ -260,7 +260,7 @@ def peroid_max_min_sum_w(dataSet):
 	# 	tmp_list.append(m.hour_mean_w(kWh, tmp_dataSet))	# append Series
 
 	# 計算 總用電量
-	dataSet['wSum'] = tmp_mean_dataSet.agg('sum', axis=1)
+	dataSet['Total_load'] = tmp_mean_dataSet.agg('sum', axis=1)
 	# 將 最大需量、最大需量、總用電量 都做四捨五入至小數第二位
-	dataSet = dataSet.round({'wMax': 2, 'wMin': 2, 'wSum': 2})
+	dataSet = dataSet.round({'Max_load': 2, 'Min_load': 2, 'Total_load': 2})
 	return dataSet

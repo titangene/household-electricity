@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 from sklearn.cluster import KMeans, MiniBatchKMeans
 
-from ..preprocess import user_load_data
+from lib.preprocess import user_load_data
 
 # 將 K-Means 每個集群中心的坐標資料存成 dataFrame
 def get_cluster_centers_dataFrame(cluster_centers):
 	peroid_column = user_load_data.create_peroid_column()
 	# 將資料存成 DataFrame，並將數值做四捨五入
 	centroids_df = pd.DataFrame(cluster_centers, columns=peroid_column).round(2)
-	# 增加 Index
-	centroids_df['index'] = list(range(0, len(centroids_df)))
+	# 增加 Group_ID
+	centroids_df['Group_ID'] = list(range(0, len(centroids_df)))
 	# 重新排列欄位順序，讓 Index 欄位變成最前面
-	peroid_and_index_column = ['index'] + peroid_column
+	peroid_and_index_column = ['Group_ID'] + peroid_column
 	centroids_df = centroids_df.reindex(peroid_and_index_column, axis=1)
 	return centroids_df
 
