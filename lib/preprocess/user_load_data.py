@@ -95,9 +95,9 @@ def set_day_dataSet(uuid, userId, reportTime, date_df):
 	return dataSet_list
 
 # 生成 UUID
-# e.g. User_id: 1, channelid: 0, Reporttime: '20180815' -> '10201808015'
-def generate_uuid(userId, channelId, reportTime):
-	return '{}{}{}'.format(userId, channelId, reportTime)
+# e.g. User_id: 1, Reporttime: '20180815' -> '1_201808015'
+def generate_uuid(userId, reportTime):
+	return '{}_{}'.format(userId, reportTime)
 
 # 彙整與轉置單一用戶的用電資料 (96 期)
 def consolidation_userId_dataSet(user_dates_group, user_group_name):
@@ -109,10 +109,9 @@ def consolidation_userId_dataSet(user_dates_group, user_group_name):
 		date_df = date_df.drop(['index', 'User_id'], axis=1)
 
 		userId = user_group_name
-		channelId = 0
 		# 將時間格式 '2018/08/15' 轉換成 '20180815'
 		reportTime = date_group_name.strftime('%Y%m%d')
-		uuid = generate_uuid(userId, channelId, reportTime)
+		uuid = generate_uuid(userId, reportTime)
 
 		# 時間只取 年 月 日
 		reportTime = date_group_name.date()
